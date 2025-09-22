@@ -1,0 +1,370 @@
+<link rel="stylesheet" href="style.css">
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Student Budget Calculator</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg: #f4fbff;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --accent:#6aa6ff;
+      --danger:#ff6b6b;
+      --success:#28a745;
+      --glass: rgba(255,255,255,0.7);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    body{background:linear-gradient(180deg,#f4fbff 0%, #eef8ff 100%);padding:20px;}
+    .container{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;gap:20px}
+    header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+    h1{font-size:20px;margin:0}
+    p.small{color:var(--muted);font-size:13px;margin:0}.card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(20,40,80,0.06)}
+.section-title{font-weight:600;margin-bottom:8px}
+
+form.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+input[type=text], input[type=number], select{width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef8;background:transparent}
+.small-input{padding:6px;font-size:13px}
+
+.list{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;align-items:center}
+.row .grow{flex:1}
+
+.muted{color:var(--muted);font-size:13px}
+.right{display:flex;flex-direction:column;gap:8px}
+
+.big-number{font-size:20px;font-weight:700}
+.green{color:var(--success)}
+.red{color:var(--danger)}
+
+button{cursor:pointer;padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:white}
+.ghost{background:transparent;border:1px solid #e6eef8;color:var(--muted)}
+.danger{background:var(--danger)}
+
+.chart-wrap{height:220px}
+
+footer{grid-column:1/-1;margin-top:12px;text-align:center;color:var(--muted);font-size:13px}
+
+/* responsive */
+@media (max-width:980px){.container{grid-template-columns:1fr;}}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Student Budget Calculator</h1>
+        <p class="small">Simple. Smart. Student-focused budgeting with scenario tools.</p>
+      </div>
+      <div class="muted">Monthly view • All values in your local currency</div>
+    </header><!-- LEFT: Main controls -->
+<div>
+  <div class="card">
+    <div class="section-title">Income (Money In)</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <input id="incomeName" type="text" placeholder="Source e.g., Work-Study"/>
+      <input id="incomeAmount" type="number" placeholder="Amount"/>
+      <select id="incomeFreq">
+        <option value="monthly">Monthly</option>
+        <option value="weekly">Weekly</option>
+        <option value="biweekly">Bi-weekly</option>
+        <option value="per_semester">Per Semester</option>
+      </select>
+      <button id="addIncome">Add</button>
+    </div>
+    <div id="incomeList" class="list"></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-title">Expenses (Money Out)</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <input id="expName" type="text" placeholder="Category e.g., Groceries"/>
+      <input id="expAmount" type="number" placeholder="Amount"/>
+      <select id="expFreq">
+        <option value="monthly">Monthly</option>
+        <option value="weekly">Weekly</option>
+        <option value="biweekly">Bi-weekly</option>
+        <option value="per_semester">Per Semester</option>
+      </select>
+      <select id="expType">
+        <option value="variable">Variable</option>
+        <option value="fixed">Fixed</option>
+        <option value="one_time">One-time (Semester)</option>
+      </select>
+      <button id="addExp">Add</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <label style="margin:0"><input id="rolloverToggle" type="checkbox"/> Rollover leftover budgets</label>
+    </div>
+    <div id="expList" class="list"></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-title">Savings Goal</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+      <input id="goalName" type="text" placeholder="Goal e.g., New Laptop" style="flex:1"/>
+      <input id="goalAmount" type="number" placeholder="Total"/>
+      <select id="goalMonths"><option value="1">1 month</option><option value="2">2 months</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option></select>
+      <button id="addGoal">Set</button>
+    </div>
+    <div id="goalArea" class="muted">No goal set</div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-title">What-If Scenario</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <select id="scenarioType">
+        <option value="add_hours">Add Job Hours</option>
+        <option value="reduce_eating">Reduce Eating Out</option>
+        <option value="one_time_cost">One-time Expense</option>
+      </select>
+      <input id="scenarioValue" type="number" placeholder="Value (hrs or amount)"/>
+      <button id="applyScenario">Apply</button>
+      <button id="resetScenario" class="ghost">Reset</button>
+    </div>
+    <div class="muted">Tip: apply a scenario to preview how your surplus/deficit changes instantly.</div>
+  </div>
+
+</div>
+
+<!-- RIGHT: Summary & Charts -->
+<aside>
+  <div class="card">
+    <div class="section-title">Summary</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div>
+        <div class="muted">Total Income</div>
+        <div id="totalIncome" class="big-number">0</div>
+      </div>
+      <div>
+        <div class="muted">Total Expenses</div>
+        <div id="totalExpenses" class="big-number">0</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="muted">Surplus / Deficit</div>
+      <div id="surplus" class="big-number">0</div>
+    </div>
+    <div id="projection" class="muted" style="margin-top:8px">Projection: --</div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-title">Charts</div>
+    <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+    <div style="height:12px"></div>
+    <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-title">Alerts & Tips</div>
+    <div id="alerts" class="muted">No alerts</div>
+  </div>
+
+  <div style="margin-top:12px;display:flex;gap:8px">
+    <button id="exportBtn">Export JSON</button>
+    <button id="clearBtn" class="ghost">Clear</button>
+  </div>
+</aside>
+
+<footer class="muted">Built for students • Save locally in your browser • Connect bank (future) • v1.0</footer>
+
+  </div>  <script>
+    // Simple local persistence and core logic.
+    const stateKey = 'student_budget_state_v1'
+    let state = loadState()
+    let scenarioOverride = null
+
+    // utility: normalize to monthly
+    function freqToMonthly(amount, freq){
+      amount = Number(amount) || 0
+      switch(freq){
+        case 'monthly': return amount
+        case 'weekly': return amount * 52 / 12
+        case 'biweekly': return amount * 26 / 12
+        case 'per_semester': return amount / 4 // assume 4 months per semester view
+        default: return amount
+      }
+    }
+
+    // load/save
+    function loadState(){
+      try{const s = JSON.parse(localStorage.getItem(stateKey) || '{}');
+        return Object.assign({incomes:[], expenses:[], goals:[], rollover:false}, s)}catch(e){return {incomes:[], expenses:[], goals:[], rollover:false}}
+    }
+    function saveState(){localStorage.setItem(stateKey, JSON.stringify(state))}
+
+    // DOM refs
+    const incomeList = document.getElementById('incomeList')
+    const expList = document.getElementById('expList')
+
+    function render(){
+      // incomes
+      incomeList.innerHTML = ''
+      state.incomes.forEach((it, idx)=>{
+        const el = document.createElement('div')
+        el.className='row'
+        el.innerHTML = `<div class="grow"><strong>${it.name}</strong> <div class="muted">${it.amount} • ${it.freq}</div></div><div style="text-align:right"><div>${formatNum(freqToMonthly(it.amount,it.freq))}/mo</div><button data-idx="${idx}" class="ghost">✎</button> <button data-del="${idx}" class="danger">✖</button></div>`
+        incomeList.appendChild(el)
+      })
+
+      // expenses
+      expList.innerHTML = ''
+      state.expenses.forEach((it, idx)=>{
+        const el = document.createElement('div')
+        el.className='row'
+        el.innerHTML = `<div class="grow"><strong>${it.name}</strong> <div class="muted">${it.amount} • ${it.freq} • ${it.type}</div></div><div style="text-align:right"><div>${formatNum(freqToMonthly(it.amount,it.freq))}/mo</div><button data-idx="${idx}" class="ghost">✎</button> <button data-del="exp-${idx}" class="danger">✖</button></div>`
+        expList.appendChild(el)
+      })
+
+      document.getElementById('goalArea').innerText = state.goals.length? state.goals.map(g=>`${g.name}: ${formatNum(g.amount)} total • ${g.months} months -> save ${formatNum(g.amount/g.months)} /mo`).join('\n') : 'No goal set'
+      document.getElementById('rolloverToggle').checked = state.rollover
+
+      updateSummary()
+      saveState()
+    }
+
+    function formatNum(n){ return Number(n).toLocaleString(undefined, {maximumFractionDigits:2}) }
+
+    // add income
+    document.getElementById('addIncome').addEventListener('click', ()=>{
+      const name = document.getElementById('incomeName').value.trim() || 'Income'
+      const amount = Number(document.getElementById('incomeAmount').value) || 0
+      const freq = document.getElementById('incomeFreq').value
+      state.incomes.push({name,amount,freq})
+      document.getElementById('incomeName').value=''
+      document.getElementById('incomeAmount').value=''
+      render()
+    })
+
+    // add expense
+    document.getElementById('addExp').addEventListener('click', ()=>{
+      const name = document.getElementById('expName').value.trim() || 'Expense'
+      const amount = Number(document.getElementById('expAmount').value) || 0
+      const freq = document.getElementById('expFreq').value
+      const type = document.getElementById('expType').value
+      state.expenses.push({name,amount,freq,type})
+      document.getElementById('expName').value=''
+      document.getElementById('expAmount').value=''
+      render()
+    })
+
+    // add goal
+    document.getElementById('addGoal').addEventListener('click', ()=>{
+      const name = document.getElementById('goalName').value.trim() || 'Goal'
+      const amount = Number(document.getElementById('goalAmount').value) || 0
+      const months = Number(document.getElementById('goalMonths').value)||1
+      state.goals = [{name,amount,months}]
+      document.getElementById('goalName').value='';document.getElementById('goalAmount').value=''
+      render()
+    })
+
+    // toggle rollover
+    document.getElementById('rolloverToggle').addEventListener('change', (e)=>{state.rollover = e.target.checked; saveState();})
+
+    // export/clear
+    document.getElementById('exportBtn').addEventListener('click', ()=>{
+      const data = JSON.stringify(state, null, 2)
+      const blob = new Blob([data],{type:'application/json'})
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = 'budget_export.json'; a.click(); URL.revokeObjectURL(url)
+    })
+    document.getElementById('clearBtn').addEventListener('click', ()=>{ if(confirm('Clear all data?')){state={incomes:[],expenses:[],goals:[],rollover:false}; saveState(); render()} })
+
+    // simple editing and deletion via event delegation
+    incomeList.addEventListener('click', (e)=>{
+      if(e.target.dataset.del!==undefined){ const i = Number(e.target.dataset.del); state.incomes.splice(i,1); render() }
+    })
+    expList.addEventListener('click', (e)=>{
+      if(e.target.dataset.del){ const i = Number(e.target.dataset.del.split('-')[1]); state.expenses.splice(i,1); render() }
+    })
+
+    // scenario
+    document.getElementById('applyScenario').addEventListener('click', ()=>{
+      const type = document.getElementById('scenarioType').value
+      const val = Number(document.getElementById('scenarioValue').value) || 0
+      scenarioOverride = {type,val}
+      updateSummary()
+    })
+    document.getElementById('resetScenario').addEventListener('click', ()=>{scenarioOverride = null; updateSummary()})
+
+    // calculations
+    let pieChart, barChart
+    function updateSummary(){
+      // base totals
+      let totalIncome = state.incomes.reduce((s,it)=>s + freqToMonthly(it.amount,it.freq),0)
+      let totalExpenses = state.expenses.reduce((s,it)=>s + freqToMonthly(it.amount,it.freq),0)
+
+      // apply scenario if any
+      if(scenarioOverride){
+        if(scenarioOverride.type==='add_hours'){
+          // assume first income is job and hourly rate in amount? simple approach: add a new income temporarily
+          // add hours as amount = hours * hourlyRate. If no hourly rate, assume 5 per hour
+          const hourly = (state.incomes.find(i=>i.name.toLowerCase().includes('job'))||{amount:5}).amount
+          totalIncome += freqToMonthly(hourly*scenarioOverride.val, 'weekly') // assuming hours/week
+        }
+        if(scenarioOverride.type==='reduce_eating'){
+          const eating = state.expenses.find(e=>e.name.toLowerCase().includes('eating'))
+          if(eating){ totalExpenses -= Math.min(freqToMonthly(eating.amount,eating.freq), scenarioOverride.val) }
+        }
+        if(scenarioOverride.type==='one_time_cost'){
+          totalExpenses += scenarioOverride.val/4 // amortize by 4 months
+        }
+      }
+
+      const surplus = totalIncome - totalExpenses
+      document.getElementById('totalIncome').innerText = formatNum(totalIncome)
+      document.getElementById('totalExpenses').innerText = formatNum(totalExpenses)
+      const sEl = document.getElementById('surplus')
+      sEl.innerText = formatNum(Math.abs(surplus))
+      sEl.className = 'big-number ' + (surplus >=0 ? 'green' : 'red')
+
+      // projection: when money runs out
+      let projectionText = '--'
+      if(surplus < 0){
+        // simple: estimate days until run out based on monthly income converted to daily
+        const monthlyAvailable = totalIncome
+        if(monthlyAvailable <= 0){ projectionText = 'No incoming money this month. Funds may run out immediately.' }
+        else { const days = Math.max(1, Math.round((monthlyAvailable / Math.abs(surplus)) * 30)); projectionText = `Projected money will last ~ ${days} days into the month.` }
+      } else { projectionText = 'Projected to cover this month and build savings.' }
+      document.getElementById('projection').innerText = projectionText
+
+      // alerts
+      const alerts = []
+      if(surplus < 0) alerts.push('You are projected to overspend this month. Consider reducing variable costs.')
+      state.expenses.forEach(e=>{
+        if(e.type==='one_time') alerts.push(`Heads up: ${e.name} is a semester one-time cost.`)
+      })
+      if(state.goals.length){ const g = state.goals[0]; const needed = g.amount / g.months; if(surplus < needed) alerts.push(`Saving goal "${g.name}" needs ${formatNum(needed)} /mo which is more than your surplus.`) }
+      document.getElementById('alerts').innerText = alerts.length? alerts.join('\n') : 'No alerts'
+
+      // charts
+      const categoryTotals = {}
+      state.expenses.forEach(e=>{ categoryTotals[e.name] = (categoryTotals[e.name]||0) + freqToMonthly(e.amount,e.freq) })
+      const labels = Object.keys(categoryTotals)
+      const values = labels.map(l=>categoryTotals[l])
+
+      if(!pieChart){
+        pieChart = new Chart(document.getElementById('pieChart'),{type:'pie',data:{labels, datasets:[{data:values}]}, options:{plugins:{legend:{position:'bottom'}}}})
+      } else { pieChart.data.labels = labels; pieChart.data.datasets[0].data = values; pieChart.update() }
+
+      // budget vs actual bar (we don't track actuals here; show budgeted expenses vs income)
+      if(!barChart){
+        barChart = new Chart(document.getElementById('barChart'),{type:'bar',data:{labels:['Income','Expenses'], datasets:[{label:'Monthly', data:[totalIncome, totalExpenses]}]}, options:{indexAxis:'y',plugins:{legend:{display:false}}}})
+      } else { barChart.data.datasets[0].data = [totalIncome, totalExpenses]; barChart.update() }
+
+    }
+
+    // initial render
+    render()
+
+  </script></body>
+</html>
